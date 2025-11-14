@@ -42,6 +42,13 @@ export default function ContactForm() {
           >
             tulongcapstone@gmail.com
           </a>
+          {" "}or call us at{" "}
+          <a 
+            href="tel:+639123456789" 
+            className="text-[#3498DB] hover:text-[#2980B9] font-semibold transition-colors"
+          >
+            +63 912 345 6789
+          </a>
           {" "}or fill out the form below
         </p>
         <div className="neumorphic p-10">
