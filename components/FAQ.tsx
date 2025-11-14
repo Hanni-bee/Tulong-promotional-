@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ScrollAnimation from "./ScrollAnimation";
 
 interface FAQItem {
   question: string;
@@ -50,9 +51,10 @@ export default function FAQ() {
   };
 
   return (
-    <section id="faq" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-4xl font-bold text-center mb-12 text-black">Frequently Asked Questions</h2>
+    <section id="faq" className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50">
+      <ScrollAnimation>
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-4xl font-bold text-center mb-12 text-black">Frequently Asked Questions</h2>
         <div className="space-y-4">
           {faqs.map((faq, index) => (
             <div key={index} className="neumorphic overflow-hidden">
@@ -73,7 +75,8 @@ export default function FAQ() {
             </div>
           ))}
         </div>
-      </div>
+        </div>
+      </ScrollAnimation>
     </section>
   );
 }

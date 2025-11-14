@@ -4,6 +4,9 @@ import FAQ from "@/components/FAQ";
 import ContactForm from "@/components/ContactForm";
 import ChromaGrid from "@/components/ChromaGrid";
 import AnimatedIcon from "@/components/AnimatedIcon";
+import ScrollAnimation from "@/components/ScrollAnimation";
+import BackToTop from "@/components/BackToTop";
+import ScrollProgress from "@/components/ScrollProgress";
 
 export default function Home() {
   const navItems = [
@@ -17,6 +20,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen relative">
+      <ScrollProgress />
       <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-7xl px-4 flex justify-center">
         <PillNav
           logo="/logo.png"
@@ -63,12 +67,18 @@ export default function Home() {
               <div className="flex flex-wrap gap-4">
                 <a 
                   href="#download" 
-                  className="px-10 py-5 bg-[#5C0E0E] hover:bg-[#6B1515] text-white font-bold rounded-full transition-all transform hover:scale-105 shadow-2xl"
+                  className="px-10 py-5 bg-[#5C0E0E] hover:bg-[#6B1515] text-white font-bold rounded-full transition-all transform hover:scale-105 shadow-2xl active:scale-95"
                   style={{
                     boxShadow: '0 10px 30px rgba(92, 14, 14, 0.5), 0 0 20px rgba(92, 14, 14, 0.3)'
                   }}
                 >
                   Download App Now
+                </a>
+                <a 
+                  href="#contact" 
+                  className="px-10 py-5 bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition-all transform hover:scale-105 shadow-xl border-2 border-white/30 active:scale-95"
+                >
+                  Contact Us
                 </a>
               </div>
             </div>
@@ -84,9 +94,10 @@ export default function Home() {
       </section>
 
       {/* Statistics/Impact Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">The Impact of Communication Failure</h2>
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50">
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">The Impact of Communication Failure</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             {[
               { stat: "80%", label: "of disaster areas lose communication within first hour", color: "red" },
@@ -105,13 +116,15 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* Benefits Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">Why Choose T.U.L.O.N.G?</h2>
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">Why Choose T.U.L.O.N.G?</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { icon: "⚡", title: "Instant Setup", desc: "Ready in minutes, no complex configuration", animation: "pulse" as const, color: "#E67E22" },
@@ -133,13 +146,15 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">Key Features</h2>
+      <section id="features" className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-gray-50 to-white">
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">Key Features</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
@@ -197,13 +212,15 @@ export default function Home() {
               );
             })}
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* How It Works Section */}
       <section id="how-it-works" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">How It Works</h2>
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">How It Works</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
               {
@@ -256,13 +273,15 @@ export default function Home() {
               );
             })}
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* Use Cases/Scenarios Section */}
-      <section id="use-cases" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">Real-World Scenarios</h2>
+      <section id="use-cases" className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50">
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">Real-World Scenarios</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
@@ -318,13 +337,15 @@ export default function Home() {
               );
             })}
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* Objectives Section */}
       <section id="objectives" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">Objectives</h2>
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">Objectives</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
               "Provide a reliable channel for communication in areas where cellular, Wi-Fi, and internet services are down",
@@ -343,13 +364,15 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* Scope Section */}
-      <section id="scope" className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">Scope</h2>
+      <section id="scope" className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-gray-50 to-white">
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">Scope</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
@@ -379,13 +402,15 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* Comparison Table Section */}
       <section id="comparison" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">T.U.L.O.N.G vs Traditional Communication</h2>
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">T.U.L.O.N.G vs Traditional Communication</h2>
           <div className="neumorphic p-8 overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -421,13 +446,15 @@ export default function Home() {
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* Testimonials/Quotes Section */}
-      <section id="testimonials" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12 text-black">What People Say</h2>
+      <section id="testimonials" className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50">
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12 text-black">What People Say</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
@@ -456,34 +483,38 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       {/* Call-to-Action Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="neumorphic p-12 text-center">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <div className="neumorphic p-12 text-center">
             <h2 className="text-4xl font-bold mb-6 text-black">Ready to Learn More?</h2>
             <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
               Join us in revolutionizing disaster communication. Get in touch to learn more about T.U.L.O.N.G 
               and how it can help your community prepare for emergencies.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <a href="#contact" className="px-8 py-4 bg-[#D32F2F] text-white font-bold rounded-lg neumorphic-sm hover:bg-[#B71C1C] transition-colors">
+              <a href="#contact" className="px-8 py-4 bg-[#D32F2F] text-white font-bold rounded-lg neumorphic-sm hover:bg-[#B71C1C] transition-all transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl">
                 Contact Us
               </a>
-              <a href="#about" className="px-8 py-4 bg-[#3498DB] text-white font-bold rounded-lg neumorphic-sm hover:bg-[#2980B9] transition-colors">
+              <a href="#about" className="px-8 py-4 bg-[#3498DB] text-white font-bold rounded-lg neumorphic-sm hover:bg-[#2980B9] transition-all transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl">
                 Learn More
               </a>
             </div>
+            </div>
           </div>
-        </div>
+        </ScrollAnimation>
       </section>
 
       {/* Limitations Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="neumorphic p-10">
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <div className="neumorphic p-10">
             <h2 className="text-3xl font-bold text-black mb-6">Limitations</h2>
             <ul className="space-y-4 text-gray-700">
               <li className="flex items-start">
@@ -499,8 +530,9 @@ export default function Home() {
                 <span>Network effectiveness depends on the density and placement of deployed devices</span>
               </li>
             </ul>
+            </div>
           </div>
-        </div>
+        </ScrollAnimation>
       </section>
 
       {/* FAQ Section */}
@@ -510,9 +542,10 @@ export default function Home() {
       <ContactForm />
 
       {/* About Section */}
-      <section id="about" className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
+      <section id="about" className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-gray-50 to-white">
+        <ScrollAnimation>
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-6 text-black">About T.U.L.O.N.G</h2>
             <p className="text-lg text-gray-700 max-w-3xl mx-auto leading-relaxed">
               T.U.L.O.N.G is centered on resilience, collaboration, and the urgent need for 
@@ -592,10 +625,12 @@ export default function Home() {
               />
             </div>
           </div>
-        </div>
+          </div>
+        </ScrollAnimation>
       </section>
 
       <Footer />
+      <BackToTop />
     </main>
   );
 }
