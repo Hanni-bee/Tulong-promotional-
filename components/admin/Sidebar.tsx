@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { DashboardIcon, UsersIcon, AnalyticsIcon, GlobeIcon, ClockIcon, ChevronLeftIcon, ChevronRightIcon, ArrowRightIcon } from "./icons";
 
 interface SidebarProps {
   activeTab: string;
@@ -8,37 +9,134 @@ interface SidebarProps {
   onCollapseChange?: (isCollapsed: boolean) => void;
 }
 
-const tabs = [
-  { id: "overview", label: "Overview", icon: "📊", color: "from-blue-500 to-blue-600" },
-  { id: "users", label: "Users", icon: "👥", color: "from-purple-500 to-purple-600" },
-  { id: "analytics", label: "Analytics", icon: "📈", color: "from-green-500 to-green-600" },
-  { id: "geographic", label: "Geographic", icon: "🌍", color: "from-orange-500 to-orange-600" },
-  { id: "time", label: "Time Analysis", icon: "⏰", color: "from-pink-500 to-pink-600" },
+interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+}
+
+const tabs: NavItem[] = [
+  { id: "overview", label: "Overview", icon: DashboardIcon },
+  { id: "users", label: "Users", icon: UsersIcon },
+  { id: "analytics", label: "Analytics", icon: AnalyticsIcon },
+  { id: "geographic", label: "Geographic", icon: GlobeIcon },
+  { id: "time", label: "Time Analysis", icon: ClockIcon },
 ];
 
-export default function Sidebar({ activeTab, onTabChange, onCollapseChange }: SidebarProps) {
-  const [isOpen, setIsOpen] = useState(true);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+const SIDEBAR_STORAGE_KEY = "admin-sidebar-collapsed";
 
-  const handleToggle = () => {
-    const newState = !isOpen;
-    setIsOpen(newState);
-    onCollapseChange?.(!newState);
-  };
+export default function Sidebar({ activeTab, onTabChange, onCollapseChange }: SidebarProps) {
+  // Initialize from localStorage with SSR safety
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      return saved !== "true";
+    }
+    return true;
+  });
+  
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(!isOpen));
+      onCollapseChange?.(!isOpen);
+    }
+  }, [isOpen, onCollapseChange]);
+
+  // Handle escape key to close mobile menu
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isMobileOpen) {
+        setIsMobileOpen(false);
+      }
+    };
+
+    if (isMobileOpen) {
+      document.addEventListener("keydown", handleEscape);
+      // Prevent body scroll when mobile menu is open
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
+    };
+  }, [isMobileOpen]);
+
+  // Handle window resize - auto-collapse on small screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024 && isOpen) {
+        // On mobile, sidebar should be closed by default
+        if (isMobileOpen) {
+          setIsMobileOpen(false);
+        }
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Initial check
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isOpen, isMobileOpen]);
+
+  const handleToggle = useCallback(() => {
+    setIsOpen((prev) => !prev);
+  }, []);
+
+  const handleMobileToggle = useCallback(() => {
+    setIsMobileOpen((prev) => !prev);
+  }, []);
+
+  const handleNavClick = useCallback((tabId: string) => {
+    onTabChange(tabId);
+    setIsMobileOpen(false);
+  }, [onTabChange]);
+
+  // Keyboard navigation handler
+  const handleKeyDown = useCallback((e: React.KeyboardEvent, tabId: string, index: number) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleNavClick(tabId);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const nextIndex = (index + 1) % tabs.length;
+      const nextButton = document.querySelector(`[data-nav-id="${tabs[nextIndex].id}"]`) as HTMLButtonElement;
+      nextButton?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prevIndex = (index - 1 + tabs.length) % tabs.length;
+      const prevButton = document.querySelector(`[data-nav-id="${tabs[prevIndex].id}"]`) as HTMLButtonElement;
+      prevButton?.focus();
+    }
+  }, [handleNavClick]);
+
+  // Memoize active tab index for keyboard navigation
+  const activeIndex = useMemo(() => {
+    return tabs.findIndex((tab) => tab.id === activeTab);
+  }, [activeTab]);
 
   return (
     <>
       {/* Mobile Hamburger Button */}
       <button
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-white rounded-xl border border-gray-200 shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
-        aria-label="Toggle menu"
+        onClick={handleMobileToggle}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 shadow-sm active:scale-95"
+        aria-label={isMobileOpen ? "Close menu" : "Open menu"}
+        aria-expanded={isMobileOpen}
+        aria-controls="sidebar-navigation"
       >
         <svg
-          className="w-6 h-6 text-gray-700 transition-transform duration-300"
+          className="w-5 h-5 text-gray-700 transition-transform duration-200"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           {isMobileOpen ? (
             <path
@@ -58,139 +156,146 @@ export default function Sidebar({ activeTab, onTabChange, onCollapseChange }: Si
         </svg>
       </button>
 
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay with backdrop blur */}
       {isMobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={() => setIsMobileOpen(false)}
+          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300"
+          onClick={handleMobileToggle}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200/80 shadow-2xl z-40 transition-all duration-300 ease-in-out backdrop-blur-sm ${
+        id="sidebar-navigation"
+        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200/60 z-40 transition-all duration-300 ease-out will-change-transform ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } ${
           isOpen ? "w-64" : "w-20"
-        }`}
+        } shadow-lg lg:shadow-none`}
+        aria-label="Main navigation"
       >
         {/* Sidebar Header */}
-        <div className="h-20 border-b border-white/10 flex items-center justify-between px-4 bg-gradient-to-br from-[#D32F2F] via-[#C62828] to-[#B71C1C] shadow-lg">
+        <div className="h-20 border-b border-red-800/30 flex items-center justify-between px-4 bg-gradient-to-br from-[#D32F2F] to-[#B71C1C] relative overflow-hidden">
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-5 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] pointer-events-none" />
+          
           {isOpen && (
-            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left duration-300">
-              <div className="w-10 h-10 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white/20">
-                <span className="text-white text-xl font-bold drop-shadow-sm">T</span>
+            <div className="flex items-center gap-3 relative z-10 animate-fade-in-up">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20 shadow-sm ring-1 ring-white/10">
+                <span className="text-white text-base font-bold">T</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-white font-bold text-sm leading-tight drop-shadow-sm">T.U.L.O.N.G</span>
+                <span className="text-white font-bold text-sm leading-tight">T.U.L.O.N.G</span>
                 <span className="text-white/90 text-xs leading-tight font-medium">Admin Portal</span>
               </div>
             </div>
           )}
           {!isOpen && (
-            <div className="w-full flex justify-center animate-in fade-in zoom-in duration-300">
-              <div className="w-10 h-10 bg-white/25 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg ring-2 ring-white/20 hover:scale-110 transition-transform cursor-pointer">
-                <span className="text-white text-xl font-bold drop-shadow-sm">T</span>
+            <div className="w-full flex justify-center relative z-10 animate-scale-in">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20 shadow-sm hover:bg-white/25 transition-all cursor-pointer ring-1 ring-white/10">
+                <span className="text-white text-base font-bold">T</span>
               </div>
             </div>
           )}
-          <button
-            onClick={handleToggle}
-            className="hidden lg:flex p-2.5 text-white/90 hover:text-white hover:bg-white/15 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
-            aria-label="Toggle sidebar"
-          >
-            <svg
-              className="w-5 h-5 transition-transform duration-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          {isOpen && (
+            <button
+              onClick={handleToggle}
+              className="hidden lg:flex p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-md transition-all duration-200 hover:scale-110 active:scale-95 relative z-10 focus:outline-none focus:ring-2 focus:ring-white/50"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
             >
-              {isOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                />
-              )}
-            </svg>
-          </button>
+              <ChevronLeftIcon className="w-5 h-5 transition-transform duration-200" strokeWidth={2.5} />
+            </button>
+          )}
+          {!isOpen && (
+            <button
+              onClick={handleToggle}
+              className="hidden lg:flex p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-md transition-all duration-200 hover:scale-110 active:scale-95 relative z-10 focus:outline-none focus:ring-2 focus:ring-white/50"
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+            >
+              <ChevronRightIcon className="w-5 h-5 transition-transform duration-200" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 py-6 px-3 overflow-y-auto custom-scrollbar">
-          <ul className="space-y-2">
+        <nav 
+          className="flex-1 py-4 overflow-y-auto custom-scrollbar overscroll-contain"
+          aria-label="Navigation menu"
+        >
+          <ul 
+            className={`${isOpen ? 'space-y-1 px-3' : 'space-y-2 px-2 flex flex-col items-center'}`}
+            role="list"
+          >
             {tabs.map((tab, index) => {
               const isActive = activeTab === tab.id;
+              const isHovered = hoveredItem === tab.id;
+              
               return (
                 <li key={tab.id} className="group/item">
                   <button
-                    onClick={() => {
-                      onTabChange(tab.id);
-                      setIsMobileOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 relative overflow-hidden group ${
+                    data-nav-id={tab.id}
+                    onClick={() => handleNavClick(tab.id)}
+                    onKeyDown={(e) => handleKeyDown(e, tab.id, index)}
+                    onMouseEnter={() => setHoveredItem(tab.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    className={`w-full flex items-center ${isOpen ? 'gap-3 px-3' : 'justify-center px-2'} py-3 rounded-lg transition-all duration-200 relative focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-2 ${
                       isActive
-                        ? "bg-gradient-to-r from-[#D32F2F] to-[#B71C1C] text-white shadow-lg shadow-red-500/20 scale-[1.02]"
-                        : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 hover:text-gray-900 hover:shadow-md hover:scale-[1.01]"
+                        ? "bg-gradient-to-r from-[#D32F2F] to-[#B71C1C] text-white shadow-md"
+                        : "text-gray-700 hover:bg-red-50/50 active:bg-red-100/50"
                     }`}
-                    style={{
-                      animationDelay: `${index * 50}ms`
-                    }}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-label={!isOpen ? tab.label : undefined}
+                    title={!isOpen ? tab.label : undefined}
                   >
-                    {/* Active indicator bar */}
-                    {isActive && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r-full shadow-lg" />
+                    {/* Active indicator bar with smooth animation */}
+                    {isActive && isOpen && (
+                      <div className="absolute left-0 top-1 bottom-1 w-1 bg-white rounded-r-full shadow-sm" />
+                    )}
+                    {isActive && !isOpen && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#D32F2F] rounded-r-full shadow-sm" />
                     )}
                     
-                    {/* Icon container */}
-                    <div className={`relative flex-shrink-0 ${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform duration-300`}>
-                      <span className="text-2xl filter drop-shadow-sm">{tab.icon}</span>
-                      {isActive && (
-                        <div className="absolute inset-0 bg-white/20 rounded-full blur-md -z-10" />
-                      )}
+                    {/* Icon with smooth scale animation */}
+                    <div className={`flex-shrink-0 transition-all duration-200 ${
+                      isActive ? 'scale-110' : isHovered ? 'scale-110' : 'scale-100'
+                    }`}>
+                      <tab.icon 
+                        className={`${isOpen ? 'w-5 h-5' : 'w-6 h-6'} transition-colors duration-200 ${
+                          isActive ? 'text-white' : 'text-gray-600'
+                        }`} 
+                        strokeWidth={isActive ? 2.5 : 2} 
+                      />
                     </div>
                     
-                    {/* Label */}
+                    {/* Label with fade animation */}
                     {isOpen && (
-                      <span className={`font-semibold text-sm whitespace-nowrap transition-all duration-300 ${
-                        isActive ? 'text-white' : 'text-gray-700 group-hover:text-gray-900'
+                      <span className={`font-medium text-sm whitespace-nowrap transition-all duration-200 ${
+                        isActive ? 'text-white' : 'text-gray-700'
                       }`}>
                         {tab.label}
                       </span>
                     )}
                     
-                    {/* Active arrow */}
+                    {/* Active arrow with slide animation */}
                     {isActive && isOpen && (
-                      <span className="ml-auto animate-in fade-in slide-in-from-right duration-300">
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
+                      <span className="ml-auto animate-fade-in-up">
+                        <ArrowRightIcon className="w-4 h-4" strokeWidth={2.5} />
                       </span>
                     )}
                     
-                    {/* Tooltip for collapsed state */}
+                    {/* Enhanced tooltip for collapsed state */}
                     {!isOpen && (
-                      <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-xs font-medium rounded-lg shadow-xl opacity-0 group-hover/item:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                      <div 
+                        className={`absolute left-full ml-3 px-3 py-2 bg-[#D32F2F] text-white text-xs font-semibold rounded-lg shadow-xl opacity-0 group-hover/item:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-50 ${
+                          isHovered ? 'translate-x-0' : '-translate-x-2'
+                        }`}
+                        role="tooltip"
+                      >
                         {tab.label}
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45" />
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1.5 w-2 h-2 bg-[#D32F2F] rotate-45" />
                       </div>
                     )}
                   </button>
@@ -201,32 +306,41 @@ export default function Sidebar({ activeTab, onTabChange, onCollapseChange }: Si
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="border-t border-gray-200/80 p-4 bg-gradient-to-b from-gray-50/80 to-white backdrop-blur-sm">
+        <div className="border-t border-gray-200/60 p-3 bg-gray-50/30">
           {isOpen && (
-            <div className="text-xs text-center space-y-2 animate-in fade-in slide-in-from-bottom duration-300">
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <p className="font-semibold text-gray-700">System Online</p>
+            <div className="text-xs text-center animate-fade-in-up">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-sm" />
+                <p className="font-medium text-gray-700">System Online</p>
               </div>
-              <p className="text-gray-400 font-medium">v1.0.0</p>
+              <p className="text-gray-500">v1.0.0</p>
             </div>
           )}
           {!isOpen && (
-            <div className="flex justify-center animate-in fade-in zoom-in duration-300">
-              <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-br from-gray-200 to-gray-300 rounded-xl flex items-center justify-center shadow-md ring-2 ring-gray-100">
-                  <span className="text-gray-700 text-sm font-bold">A</span>
+            <div className="flex justify-center animate-scale-in">
+              <div className="relative group">
+                <div className="w-9 h-9 bg-gradient-to-br from-red-50 to-red-100 rounded-lg flex items-center justify-center border border-red-200/50 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500/50">
+                  <span className="text-[#D32F2F] text-sm font-bold">A</span>
                 </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm" />
+                <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-2 border-white shadow-sm animate-pulse" />
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-[#D32F2F] text-white text-xs font-semibold rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  Admin
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-[#D32F2F] rotate-45" />
+                </div>
               </div>
             </div>
           )}
         </div>
       </aside>
 
-      {/* Spacer for desktop */}
-      <div className={`hidden lg:block ${isOpen ? "w-64" : "w-20"} transition-all duration-300`} />
+      {/* Spacer for desktop - smooth transition */}
+      <div 
+        className={`hidden lg:block transition-all duration-300 ease-out ${
+          isOpen ? "w-64" : "w-20"
+        }`} 
+        aria-hidden="true"
+      />
     </>
   );
 }
-

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { SearchIcon, FilterIcon, EyeIcon, ChevronUpIcon, ChevronDownIcon, ChevronUpDownIcon, CloseIcon } from "./icons";
 import { format } from "date-fns";
 
 interface UserData {
@@ -178,30 +179,39 @@ export default function UserManagement({ users, onFilteredUsersChange }: UserMan
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <span className="text-gray-400">↕</span>;
-    return sortDirection === "asc" ? <span>↑</span> : <span>↓</span>;
+    if (sortField !== field) return <ChevronUpDownIcon className="w-3 h-3 text-gray-400" strokeWidth={2} />;
+    return sortDirection === "asc" ? (
+      <ChevronUpIcon className="w-3 h-3 text-gray-700" strokeWidth={2.5} />
+    ) : (
+      <ChevronDownIcon className="w-3 h-3 text-gray-700" strokeWidth={2.5} />
+    );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Search and Filters */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="bg-white p-5 rounded-xl border border-gray-200/50 shadow-sm animate-fade-in-up">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* Search */}
           <div className="lg:col-span-2">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Search
             </label>
-            <input
-              type="text"
-              placeholder="Search by name, email, phone, or address..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-4 py-2.5 bg-gray-50 text-gray-800 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3498DB] focus:border-transparent transition-all"
-            />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <SearchIcon className="w-5 h-5 text-gray-400" strokeWidth={2} />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by name, email, phone, or address..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 text-gray-800 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#3498DB] focus:border-transparent transition-all"
+              />
+            </div>
           </div>
 
           {/* Region Filter */}
@@ -270,10 +280,10 @@ export default function UserManagement({ users, onFilteredUsersChange }: UserMan
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200/50 shadow-sm overflow-hidden animate-fade-in-up animate-delay-200">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200/60">
               <tr>
                 <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
@@ -331,8 +341,12 @@ export default function UserManagement({ users, onFilteredUsersChange }: UserMan
                   </td>
                 </tr>
               ) : (
-                currentUsers.map((user) => (
-                  <tr key={user.uid} className="hover:bg-gray-50 transition-colors">
+                currentUsers.map((user, index) => (
+                  <tr 
+                    key={user.uid} 
+                    className="hover:bg-gray-50 transition-all duration-150 border-b border-gray-100 animate-fade-in-up"
+                    style={{ animationDelay: `${index * 20}ms` }}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {getFullName(user.data)}
                     </td>
@@ -354,8 +368,9 @@ export default function UserManagement({ users, onFilteredUsersChange }: UserMan
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button
                         onClick={() => setSelectedUser(user)}
-                        className="text-[#3498DB] hover:text-[#2980B9] font-medium transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-50"
+                        className="text-[#3498DB] hover:text-[#2980B9] font-medium transition-all px-3 py-1.5 rounded-lg hover:bg-blue-50 flex items-center gap-1.5 active:scale-95"
                       >
+                        <EyeIcon className="w-4 h-4" strokeWidth={2} />
                         View Details
                       </button>
                     </td>
@@ -407,16 +422,14 @@ export default function UserManagement({ users, onFilteredUsersChange }: UserMan
       {/* User Details Modal */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl border border-gray-200">
-            <div className="bg-[#D32F2F] text-white px-6 py-4 flex items-center justify-between">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200/60 animate-in fade-in zoom-in duration-200">
+            <div className="bg-gradient-to-r from-[#D32F2F] to-[#B71C1C] text-white px-6 py-4 flex items-center justify-between border-b border-red-800/30">
               <h2 className="text-xl font-bold">User Details</h2>
               <button
                 onClick={() => setSelectedUser(null)}
-                className="text-white hover:text-gray-200 transition-colors"
+                className="text-white hover:text-white/80 transition-all p-1 rounded-md hover:bg-white/10 active:scale-95"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <CloseIcon className="w-6 h-6" strokeWidth={2} />
               </button>
             </div>
             <div className="p-6 space-y-4">

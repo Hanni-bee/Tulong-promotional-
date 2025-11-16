@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { format, subDays, startOfDay, endOfDay, eachDayOfInterval, parseISO } from "date-fns";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from "date-fns";
+import { LineChart } from "@mui/x-charts/LineChart";
+import { BarChart } from "@mui/x-charts/BarChart";
+import { filterByDateRange, groupByDay, calculateGrowth } from "@/utils/analyticsOptimizer";
+import { usePerformanceMonitor } from "@/hooks/usePerformanceMonitor";
 
 interface User {
   uid: string;
@@ -18,143 +21,136 @@ interface TimeBasedAnalyticsProps {
 export default function TimeBasedAnalytics({ users }: TimeBasedAnalyticsProps) {
   const [dateRange, setDateRange] = useState<"7" | "30" | "90" | "all">("30");
 
+  const { measureCalculation } = usePerformanceMonitor({
+    componentName: "TimeBasedAnalytics",
+    logToConsole: process.env.NODE_ENV === "development",
+  });
+
   const analytics = useMemo(() => {
-    const now = new Date();
-    let startDate: Date;
-    
-    switch (dateRange) {
-      case "7":
-        startDate = subDays(now, 7);
-        break;
-      case "30":
-        startDate = subDays(now, 30);
-        break;
-      case "90":
-        startDate = subDays(now, 90);
-        break;
-      default:
-        startDate = users.length > 0 
-          ? new Date(Math.min(...users.map(u => u.data.createdAt ? new Date(u.data.createdAt).getTime() : now.getTime())))
-          : subDays(now, 30);
-    }
-
-    const days = eachDayOfInterval({ start: startDate, end: now });
-    
-    const registrationsByDay = days.map(day => {
-      const dayStart = startOfDay(day);
-      const dayEnd = endOfDay(day);
+    return measureCalculation(() => {
+      const now = new Date();
+      let startDate: Date;
       
-      const count = users.filter(user => {
-        if (!user.data.createdAt) return false;
-        const createdDate = new Date(user.data.createdAt);
-        return createdDate >= dayStart && createdDate <= dayEnd;
-      }).length;
+      switch (dateRange) {
+        case "7":
+          startDate = subDays(now, 7);
+          break;
+        case "30":
+          startDate = subDays(now, 30);
+          break;
+        case "90":
+          startDate = subDays(now, 90);
+          break;
+        default:
+          startDate = users.length > 0 
+            ? new Date(Math.min(...users.map(u => u.data.createdAt ? new Date(u.data.createdAt).getTime() : now.getTime())))
+            : subDays(now, 30);
+      }
+
+      const days = eachDayOfInterval({ start: startDate, end: now });
       
-      return {
-        date: format(day, 'MMM dd'),
-        fullDate: format(day, 'yyyy-MM-dd'),
-        users: count,
-      };
-    });
+      // Use optimized grouping
+      const dayMap = groupByDay(users, startDate, now);
+      const registrationsByDay = days.map(day => {
+        const dayKey = day.toISOString().split('T')[0];
+        return {
+          date: format(day, 'MMM dd'),
+          fullDate: format(day, 'yyyy-MM-dd'),
+          users: dayMap.get(dayKey) || 0,
+        };
+      });
 
-    const today = startOfDay(now);
-    const todayEnd = endOfDay(now);
-    const usersToday = users.filter(user => {
-      if (!user.data.createdAt) return false;
-      const createdDate = new Date(user.data.createdAt);
-      return createdDate >= today && createdDate <= todayEnd;
-    }).length;
+      // Use optimized date filtering
+      const today = startOfDay(now);
+      const todayEnd = endOfDay(now);
+      const usersToday = filterByDateRange(users, today, todayEnd).length;
 
-    const sevenDaysAgo = subDays(now, 7);
-    const usersLast7Days = users.filter(user => {
-      if (!user.data.createdAt) return false;
-      const createdDate = new Date(user.data.createdAt);
-      return createdDate >= sevenDaysAgo && createdDate <= now;
-    }).length;
+      const sevenDaysAgo = subDays(now, 7);
+      const usersLast7Days = filterByDateRange(users, sevenDaysAgo, now).length;
 
-    const thirtyDaysAgo = subDays(now, 30);
-    const usersLast30Days = users.filter(user => {
-      if (!user.data.createdAt) return false;
-      const createdDate = new Date(user.data.createdAt);
-      return createdDate >= thirtyDaysAgo && createdDate <= now;
-    }).length;
+      const thirtyDaysAgo = subDays(now, 30);
+      const usersLast30Days = filterByDateRange(users, thirtyDaysAgo, now).length;
 
-    const totalInRange = users.filter(user => {
-      if (!user.data.createdAt) return false;
-      const createdDate = new Date(user.data.createdAt);
-      return createdDate >= startDate && createdDate <= now;
-    }).length;
+      const totalInRange = filterByDateRange(users, startDate, now).length;
 
-    // Calculate growth percentage
-    const previousPeriodStart = subDays(startDate, dateRange === "7" ? 7 : dateRange === "30" ? 30 : 90);
-    const previousPeriodEnd = startDate;
-    const previousPeriodCount = users.filter(user => {
-      if (!user.data.createdAt) return false;
-      const createdDate = new Date(user.data.createdAt);
-      return createdDate >= previousPeriodStart && createdDate < previousPeriodEnd;
-    }).length;
+      // Calculate growth percentage using optimized function
+      const previousPeriodStart = subDays(startDate, dateRange === "7" ? 7 : dateRange === "30" ? 30 : 90);
+      const previousPeriodEnd = startDate;
+      const previousPeriodCount = filterByDateRange(users, previousPeriodStart, previousPeriodEnd).length;
 
-    const growthPercentage = previousPeriodCount > 0
-      ? (((totalInRange - previousPeriodCount) / previousPeriodCount) * 100).toFixed(1)
-      : totalInRange > 0 ? "100.0" : "0.0";
+      const growthPercentage = calculateGrowth(totalInRange, previousPeriodCount);
 
-    // Peak registration times (by hour)
-    const registrationsByHour = Array.from({ length: 24 }, (_, hour) => {
-      const count = users.filter(user => {
-        if (!user.data.createdAt) return false;
-        const createdDate = new Date(user.data.createdAt);
-        return createdDate.getHours() === hour;
-      }).length;
-      return {
+      // Peak registration times (by hour) - optimized
+      const hourCounts = new Map<number, number>();
+      for (const user of users) {
+        if (user.data.createdAt) {
+          const hour = new Date(user.data.createdAt).getHours();
+          hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+        }
+      }
+
+      const registrationsByHour = Array.from({ length: 24 }, (_, hour) => ({
         hour: `${hour}:00`,
         hourNum: hour,
-        users: count,
+        users: hourCounts.get(hour) || 0,
+      }));
+
+      const peakHour = registrationsByHour.reduce((max, current) => 
+        current.users > max.users ? current : max
+      , registrationsByHour[0]);
+
+      return {
+        registrationsByDay,
+        usersToday,
+        usersLast7Days,
+        usersLast30Days,
+        totalInRange,
+        growthPercentage: parseFloat(growthPercentage.toFixed(1)),
+        isPositiveGrowth: growthPercentage >= 0,
+        peakHour,
+        registrationsByHour,
       };
     });
-
-    const peakHour = registrationsByHour.reduce((max, current) => 
-      current.users > max.users ? current : max
-    , registrationsByHour[0]);
-
-    return {
-      registrationsByDay,
-      usersToday,
-      usersLast7Days,
-      usersLast30Days,
-      totalInRange,
-      growthPercentage: parseFloat(growthPercentage),
-      isPositiveGrowth: parseFloat(growthPercentage) >= 0,
-      peakHour,
-      registrationsByHour,
-    };
-  }, [users, dateRange]);
+  }, [users, dateRange, measureCalculation]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-          <div className="text-sm text-gray-500 mb-2 font-medium">Users Today</div>
-          <div className="text-3xl font-bold text-[#D32F2F] tracking-tight">{analytics.usersToday}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white p-5 rounded-xl border border-gray-200/50 hover:border-gray-300/60 hover:shadow-sm transition-all relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-rose-50/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative z-10">
+            <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Users Today</div>
+            <div className="text-3xl font-bold text-slate-800 tracking-tight">{analytics.usersToday}</div>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-          <div className="text-sm text-gray-500 mb-2 font-medium">Last 7 Days</div>
-          <div className="text-3xl font-bold text-[#3498DB] tracking-tight">{analytics.usersLast7Days}</div>
+        <div className="bg-white p-5 rounded-xl border border-gray-200/50 hover:border-gray-300/60 hover:shadow-sm transition-all relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative z-10">
+            <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Last 7 Days</div>
+            <div className="text-3xl font-bold text-slate-800 tracking-tight">{analytics.usersLast7Days}</div>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-          <div className="text-sm text-gray-500 mb-2 font-medium">Last 30 Days</div>
-          <div className="text-3xl font-bold text-[#27AE60] tracking-tight">{analytics.usersLast30Days}</div>
+        <div className="bg-white p-5 rounded-xl border border-gray-200/50 hover:border-gray-300/60 hover:shadow-sm transition-all relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative z-10">
+            <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Last 30 Days</div>
+            <div className="text-3xl font-bold text-slate-800 tracking-tight">{analytics.usersLast30Days}</div>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-          <div className="text-sm text-gray-500 mb-2 font-medium">Growth</div>
-          <div className={`text-3xl font-bold tracking-tight ${analytics.isPositiveGrowth ? 'text-[#27AE60]' : 'text-[#D32F2F]'}`}>
-            {analytics.isPositiveGrowth ? '+' : ''}{analytics.growthPercentage}%
+        <div className="bg-white p-5 rounded-xl border border-gray-200/50 hover:border-gray-300/60 hover:shadow-sm transition-all relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-50/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative z-10">
+            <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wider">Growth</div>
+            <div className={`text-3xl font-bold tracking-tight ${analytics.isPositiveGrowth ? 'text-emerald-700' : 'text-rose-700'}`}>
+              {analytics.isPositiveGrowth ? '+' : ''}{analytics.growthPercentage}%
+            </div>
           </div>
         </div>
       </div>
 
       {/* Date Range Selector */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="bg-white p-5 rounded-xl border border-gray-200/50 shadow-sm">
         <div className="flex items-center gap-4">
           <label className="text-sm font-semibold text-gray-700">Time Period:</label>
           <div className="flex gap-2">
@@ -162,10 +158,10 @@ export default function TimeBasedAnalytics({ users }: TimeBasedAnalyticsProps) {
               <button
                 key={range}
                 onClick={() => setDateRange(range)}
-                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                className={`px-4 py-2 rounded-md font-medium transition-colors ${
                   dateRange === range
-                    ? "bg-[#D32F2F] text-white shadow-sm"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                    ? "bg-slate-800 text-white"
+                    : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200/60"
                 }`}
               >
                 {range === "all" ? "All Time" : `${range} Days`}
@@ -176,92 +172,160 @@ export default function TimeBasedAnalytics({ users }: TimeBasedAnalyticsProps) {
       </div>
 
       {/* Registration Chart */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">
-          User Registrations Over Time ({dateRange === "all" ? "All Time" : `Last ${dateRange} Days`})
-        </h3>
-        <ResponsiveContainer width="100%" height={350}>
-          <AreaChart data={analytics.registrationsByDay}>
-            <defs>
-              <linearGradient id="colorRegistrations" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3498DB" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#3498DB" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis 
-              dataKey="date" 
-              stroke="#666"
-              angle={dateRange === "all" ? -45 : 0}
-              textAnchor={dateRange === "all" ? "end" : "middle"}
-              height={dateRange === "all" ? 100 : 30}
-            />
-            <YAxis stroke="#666" />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#fff', 
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-              }}
-            />
-            <Area 
-              type="monotone" 
-              dataKey="users" 
-              stroke="#3498DB" 
-              strokeWidth={2}
-              fillOpacity={1} 
-              fill="url(#colorRegistrations)" 
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+      <div className="bg-white p-5 rounded-xl border border-gray-200/50 shadow-sm">
+        <div className="mb-5">
+          <h3 className="text-lg font-bold text-gray-900 mb-1">
+            User Registrations Over Time
+          </h3>
+          <p className="text-sm text-gray-500">{dateRange === "all" ? "All Time" : `Last ${dateRange} Days`}</p>
+        </div>
+        <div style={{ width: '100%', height: 350 }}>
+          <LineChart
+            width={undefined}
+            height={350}
+            series={[
+              {
+                data: analytics.registrationsByDay.map(d => d.users),
+                area: true,
+                color: '#3498DB',
+                label: 'Users',
+              },
+            ]}
+            xAxis={[
+              {
+                scaleType: 'point',
+                data: analytics.registrationsByDay.map(d => d.date),
+                label: 'Date',
+                labelStyle: {
+                  fontSize: 12,
+                  fill: '#666',
+                },
+                tickLabelStyle: {
+                  fontSize: dateRange === "all" ? 9 : 11,
+                  fill: '#666',
+                  angle: dateRange === "all" ? -45 : 0,
+                  textAnchor: dateRange === "all" ? "end" : "middle",
+                },
+              },
+            ]}
+            yAxis={[
+              {
+                label: 'Users',
+                labelStyle: {
+                  fontSize: 12,
+                  fill: '#666',
+                },
+                tickLabelStyle: {
+                  fontSize: 11,
+                  fill: '#666',
+                },
+              },
+            ]}
+            grid={{ vertical: true, horizontal: true }}
+            sx={{
+              '& .MuiChartsGrid-line': {
+                stroke: '#e0e0e0',
+                strokeDasharray: '3 3',
+              },
+              '& .MuiChartsAxis-line': {
+                stroke: '#666',
+              },
+              '& .MuiChartsAxis-tick': {
+                stroke: '#666',
+              },
+            }}
+            slotProps={{
+              tooltip: {
+                contentStyle: {
+                  backgroundColor: '#fff',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                },
+              },
+            }}
+          />
+        </div>
       </div>
 
       {/* Peak Hours Chart */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-white p-5 rounded-xl border border-gray-200/50 shadow-sm">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">
           Peak Registration Times (by Hour)
         </h3>
-        <div className="mb-4 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+        <div className="mb-5 p-4 bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg border border-slate-200/60">
           <p className="text-sm text-gray-700">
             <span className="font-semibold">Peak Hour:</span> {analytics.peakHour.hour} with {analytics.peakHour.users} registrations
           </p>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={analytics.registrationsByHour}>
-            <defs>
-              <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#E67E22" stopOpacity={0.8}/>
-                <stop offset="95%" stopColor="#E67E22" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis 
-              dataKey="hour" 
-              stroke="#666"
-              interval={2}
-            />
-            <YAxis stroke="#666" />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#fff', 
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-              }}
-            />
-            <Area 
-              type="monotone" 
-              dataKey="users" 
-              stroke="#E67E22" 
-              strokeWidth={2}
-              fillOpacity={1} 
-              fill="url(#colorHours)" 
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        <div style={{ width: '100%', height: 300 }}>
+          <BarChart
+            width={undefined}
+            height={300}
+            series={[
+              {
+                data: analytics.registrationsByHour.map(d => d.users),
+                color: '#E67E22',
+                label: 'Registrations',
+              },
+            ]}
+            xAxis={[
+              {
+                scaleType: 'band',
+                data: analytics.registrationsByHour.map(d => d.hour),
+                label: 'Hour',
+                labelStyle: {
+                  fontSize: 12,
+                  fill: '#666',
+                },
+                tickLabelStyle: {
+                  fontSize: 10,
+                  fill: '#666',
+                },
+              },
+            ]}
+            yAxis={[
+              {
+                label: 'Registrations',
+                labelStyle: {
+                  fontSize: 12,
+                  fill: '#666',
+                },
+                tickLabelStyle: {
+                  fontSize: 11,
+                  fill: '#666',
+                },
+              },
+            ]}
+            grid={{ vertical: true, horizontal: true }}
+            sx={{
+              '& .MuiChartsGrid-line': {
+                stroke: '#e0e0e0',
+                strokeDasharray: '3 3',
+              },
+              '& .MuiChartsAxis-line': {
+                stroke: '#666',
+              },
+              '& .MuiChartsAxis-tick': {
+                stroke: '#666',
+              },
+              '& .MuiBarElement-root': {
+                rx: 4,
+              },
+            }}
+            slotProps={{
+              tooltip: {
+                contentStyle: {
+                  backgroundColor: '#fff',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                },
+              },
+            }}
+          />
+        </div>
       </div>
     </div>
   );
 }
-
